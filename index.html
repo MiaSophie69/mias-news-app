@@ -8,7 +8,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Mias News">
-    <link rel="apple-touch-icon" href="Logo App.jpeg">
+    
+    <link rel="apple-touch-icon" href="logo.png?v=2">
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -85,7 +86,6 @@
         let aktuelleKategorie = 'Alle';
         let nurFavoritenModus = false;
 
-        // Filtert unleserliche Zeichen aus den API-Texten heraus
         function bereinigeText(text) {
             if (!text) return "";
             return text
@@ -107,7 +107,6 @@
             container.innerHTML = "<div class='empty-state'>Lade echte Live-News über Mias Server...</div>";
             
             try {
-                // Deine echte Render-Adresse ist jetzt hier fest eingebaut!
                 const response = await fetch(`https://mias-news-backend.onrender.com/api/live-news`);
                 const data = await response.json();
                 
@@ -124,7 +123,8 @@
                             beschreibung: bereinigeText(artikel.description),
                             kategorie: kat,
                             quelle: bereinigeText(artikel.source.name),
-                            publikationen: Math.floor(Math.random() * 36) + 12
+                            publikationen: Math.floor(Math.random() * 36) + 12,
+                            url: artikel.url // <-- Hier wird der Link gespeichert!
                         };
                     });
                 }
@@ -139,9 +139,9 @@
 
         function nutzeFallback() {
             allNews = [
-                { id: 'f1', titel: "Mias Web-App l&auml;uft: Gro&szlig;es Feature-Update steht kurz bevor!", beschreibung: "Nach intensiven Programmier-Sessions steht das neue Grundger&uuml;st der App als PWA auf dem iPhone Homescreen.", kategorie: "Technologie", quelle: "Mias Tech-Blog", publikationen: 45 },
-                { id: 'f2', titel: "Popkultur-Sensation: Rekorde pur im neuen Musik-Jahr.", beschreibung: "Die gr&ouml;&szlig;ten Stars k&uuml;ndigen &uuml;berraschend neue Alben und gigantische Welttouren an.", kategorie: "Popkultur", quelle: "Rolling Stone", publikationen: 32 },
-                { id: 'f3', titel: "Gro&szlig;e Entdeckungen im Weltraum fesseln die Forschung.", beschreibung: "Wissenschaftler haben faszinierende neue Daten ausgewertet, die unseren Blick auf das Universum ver&auml;ndern.", kategorie: "Weltgeschehen", quelle: "Science Daily", publikationen: 22 }
+                { id: 'f1', titel: "Mias Web-App l&auml;uft: Gro&szlig;es Feature-Update steht kurz bevor!", beschreibung: "Nach intensiven Programmier-Sessions steht das neue Grundger&uuml;st der App als PWA auf dem iPhone Homescreen.", kategorie: "Technologie", quelle: "Mias Tech-Blog", publikationen: 45, url: "https://github.com" },
+                { id: 'f2', titel: "Popkultur-Sensation: Rekorde pur im neuen Musik-Jahr.", beschreibung: "Die gr&ouml;&szlig;ten Stars k&uuml;ndigen &uuml;berraschend neue Alben und gigantische Welttouren an.", kategorie: "Popkultur", quelle: "Rolling Stone", publikationen: 32, url: "https://github.com" },
+                { id: 'f3', titel: "Gro&szlig;e Entdeckungen im Weltraum fesseln die Forschung.", beschreibung: "Wissenschaftler haben faszinierende neue Daten ausgewertet, die unseren Blick auf das Universum ver&auml;ndern.", kategorie: "Weltgeschehen", quelle: "Science Daily", publikationen: 22, url: "https://github.com" }
             ];
         }
 
@@ -174,16 +174,18 @@
                 const classKat = news.kategorie.toLowerCase();
                 const card = document.createElement('div');
                 card.className = 'card';
+                
+                // Hier wurde das HTML für die aufklappbare Karte angepasst (Zusammenfassung & klickbarer Link)
                 card.innerHTML = `
                     <div class="card-top">
                         <span class="badge ${classKat}">${news.kategorie}</span>
                         <button class="card-heart ${istFav ? 'active' : ''}" onclick="toggleFavorit('${news.id}', event)">${istFav ? '❤️' : '🤍'}</button>
                     </div>
                     <h2 onclick="this.parentElement.classList.toggle('open')">${news.titel}</h2>
-                    <p>${news.beschreibung}<br><br><strong>Hauptquelle:</strong> ${news.quelle}</p>
+                    <p><strong>Zusammenfassung:</strong> ${news.beschreibung}<br><br><strong>Hauptquelle:</strong> ${news.quelle}</p>
                     <div class="card-footer">
                         <span>📰 ${news.publikationen} Publikationen</span>
-                        <span>Mehr lesen &rarr;</span>
+                        <a href="${news.url}" target="_blank" style="color: #ff2d55; text-decoration: none; font-weight: 600;">Original lesen &rarr;</a>
                     </div>
                 `;
                 container.appendChild(card);
