@@ -114,19 +114,34 @@
                             let kat = "Weltgeschehen";
                             let t = artikel.title.toLowerCase();
                             let d = artikel.description.toLowerCase();
+                            let q = artikel.source.name.toLowerCase();
+                            let u = artikel.url.toLowerCase();
                             
-                            // 1. UNSICHTBARER FILTER FÜR DIE BLACKLIST
-                            // Wenn diese nervigen Wörter vorkommen, wird der Artikel aussortiert, AUẞER es ist eine fette Eilmeldung
-                            const blacklist = ["nba", "basketball", "star trek", "star wars", "fußball", "bundesliga", "sport", "spieltag"];
-                            const istBlacklisted = blacklist.some(word => t.includes(word) || d.includes(word));
+                            // 1. NEUE BLOCKLISTE FÜR NERVENDE SEITEN & THEMEN
+                            const blockierteQuellen = ["kino.de", "ibiza-heute", "ibiza heute"];
+                            const blacklistThemen = ["nba", "basketball", "star trek", "star wars", "fußball", "bundesliga", "sport", "spieltag"];
                             
-                            // 2. DER PUKENSCHLAG-FILTER (Wichtige Breaking News)
-                            const breakingWords = ["breaking", "eilmeldung", "schock", "sensation", "katastrophe", "ruecktritt", "rücktritt", "erdbeben", "skandal", "rekord"];
+                            const istBlockierteQuelle = blockierteQuellen.some(qName => q.includes(qName) || u.includes(qName));
+                            const istBlacklistedThema = blacklistThemen.some(word => t.includes(word) || d.includes(word));
+                            
+                            // 2. DAS NETZ FÜR ECHTE EILMELDUNGEN (Kombiniert mit Politik-Filter)
+                            const breakingWords = [
+                                "breaking", "eilmeldung", "schock", "sensation", "katastrophe", 
+                                "ruecktritt", "rücktritt", "erdbeben", "skandal", "rekord", 
+                                "ausnahmezustand", "warnung", "großalarm", "explosiv", "festnahme",
+                                "historisch", "weltrekord", "überraschung", "enthüllt", "statement", "krieg", "wahl"
+                            ];
                             const istBreaking = breakingWords.some(word => t.includes(word));
                             
-                            if (istBlacklisted && !istBreaking) {
-                                return null; // Artikel komplett ignorieren
-                            }
+                            // Quellen komplett blockieren (ohne Ausnahme)
+                            if (istBlockierteQuelle) return null;
+                            
+                            // Themen blockieren, außer es ist ein Mega-Event
+                            if (istBlacklistedThema && !istBreaking) return null;
+                            
+                            // 3. POLITIK RADIKAL FILTERN: Normale Politik-Artikel fliegen raus, außer sie sind extrem wichtig (istBreaking)
+                            const istPolitik = t.includes("politik") || t.includes("bundestag") || t.includes("regierung") || t.includes("gesetz") || t.includes("scholz");
+                            if (istPolitik && !istBreaking) return null;
 
                             const popKeywords = [
                                 "gaga", "swift", "beyonce", "kardashian", "rihanna", "grande", "bieber", 
@@ -156,9 +171,8 @@
                                 breaking: istBreaking
                             };
                         })
-                        .filter(Boolean); // Entfernt die leeren "null"-Einträge aus der Blacklist
+                        .filter(Boolean);
 
-                    // Breaking News automatisch ganz nach oben sortieren
                     allNews.sort((a, b) => (b.breaking ? 1 : 0) - (a.breaking ? 1 : 0));
                 }
                 if(allNews.length === 0) container.innerHTML = "<div class='empty-state'>Keine Artikel gefunden.</div>";
@@ -179,7 +193,6 @@
                 gefiltert = gefiltert.filter(n => favoritenSet.has(n.id));
             } else {
                 if (aktuelleKategorie !== 'Alle') {
-                    // Wichtige Breaking News werden IMMER angezeigt, auch wenn man eine Kategorie filtert!
                     gefiltert = gefiltert.filter(n => n.kategorie === aktuelleKategorie || n.breaking);
                 }
                 
@@ -206,7 +219,6 @@
                 const istFav = favoritenSet.has(news.id);
                 const classKat = news.kategorie.toLowerCase();
                 const card = document.createElement('div');
-                // Breaking News bekommen ein rotes Design
                 card.className = `card ${news.breaking ? 'breaking-card' : ''}`;
                 
                 card.innerHTML = `
