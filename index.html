@@ -84,6 +84,10 @@
     <script>
         let allNews = [];
         let favoritenSet = new Set(JSON.parse(localStorage.getItem('mias_favoriten') || '[]'));
+        
+        // NEU: Das Gedächtnis des Algorithmus laden
+        let interessenScores = JSON.parse(localStorage.getItem('mias_algorithmus_scores') || '{}');
+        
         let aktuelleKategorie = 'Alle';
         let aktuelleStadt = 'beides';
         let nurFavoritenModus = false;
@@ -117,7 +121,6 @@
                             let q = artikel.source.name.toLowerCase();
                             let u = artikel.url.toLowerCase();
                             
-                            // 1. HARDCORE BLACKLIST (QUELLEN + LANGWEILIGE THEMEN)
                             const blockierteQuellen = ["kino.de", "ibiza-heute", "ibiza heute"];
                             const blacklistThemen = [
                                 "nba", "basketball", "star trek", "star wars", "fußball", "bundesliga", "sport", "spieltag", "transfer", "formel 1",
@@ -126,7 +129,6 @@
                             
                             if (blockierteQuellen.some(qName => q.includes(qName) || u.includes(qName))) return null;
                             
-                            // 2. INTERNATIONALE BREAKING KEYWORDS
                             const breakingWords = [
                                 "breaking", "eilmeldung", "schock", "sensation", "katastrophe", 
                                 "ruecktritt", "rücktritt", "erdbeben", "skandal", "rekord", "announcement",
@@ -134,14 +136,11 @@
                             ];
                             const istBreaking = breakingWords.some(word => t.includes(word));
                             
-                            // Wenn auf der Blacklist, fliegt es raus, außer es ist eine weltbewegende Eilmeldung
                             if (blacklistThemen.some(word => t.includes(word) || d.includes(word)) && !istBreaking) return null;
                             
-                            // Trockene Standard-Politik kicken (Ausnahme: Eilmeldung/Krise)
                             const istPolitik = t.includes("politik") || t.includes("bundestag") || t.includes("regierung") || t.includes("gesetz") || t.includes("scholz");
                             if (istPolitik && !istBreaking) return null;
 
-                            // 3. INTERNATIONALE POPKULTUR KEYWORDS (DE + EN)
                             const popKeywords = [
                                 "gaga", "swift", "beyonce", "kardashian", "rihanna", "grande", "bieber", 
                                 "lipa", "eilish", "carpenter", "rodrigo", "gomez", "zendaya", "jenner", 
@@ -172,13 +171,55 @@
                         })
                         .filter(Boolean);
 
-                    allNews.sort((a, b) => (b.breaking ? 1 : 0) - (a.breaking ? 1 : 0));
+                    // ALGORITHMUS-LOGIK: Berechne für jeden Artikel einen Relevanz-Score basierend auf deinen Likes
+                    allNews.forEach(artikel => {
+                        let score = 0;
+                        if (artikel.breaking) score += 500; // Breaking News schlagen alles
+                        
+                        let text = (artikel.titel + " " + artikel.beschreibung).toLowerCase();
+                        
+                        // Prüfe, welche deiner gelernten Lieblingswörter im Text vorkommen
+                        Object.keys(interessenScores).forEach(wort => {
+                            if (text.includes(wort)) {
+                                score += interessenScores[wort] * 10; // Je öfter geliked, desto höher der Push
+                            }
+                        });
+                        
+                        artikel.algoScore = score;
+                    });
+
+                    // Sortiere nach dem Algorithmus-Score (Höchster zuerst)
+                    allNews.sort((a, b) => b.algoScore - a.algoScore);
                 }
                 if(allNews.length === 0) container.innerHTML = "<div class='empty-state'>Keine Artikel gefunden.</div>";
             } catch (e) {
                 console.error("Fehler beim Laden:", e);
             }
             renderNews();
+        }
+
+        // NEU: Diese Funktion lernt, welche Wörter in deinen gelikten Artikeln vorkommen
+        function lerneAusLike(titel, beschreibung, istErstellt) {
+            let woerter = (titel + " " + beschreibung).toLowerCase()
+                .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"")
+                .split(/\s+/);
+            
+            // Wir filtern langweilige Füllwörter aus
+            const stoppWoerter = ["der", "die", "das", "und", "ist", "in", "ein", "eine", "mit", "für", "von", "auf", "zu", "den", "dem", "am", "im", "the", "a", "an", "and", "in", "for", "to", "on", "of", "with"];
+            
+            woerter.forEach(wort => {
+                if (wort.length > 3 && !stoppWoerter.includes(wort)) {
+                    if (!interessenScores[wort]) interessenScores[wort] = 0;
+                    
+                    if (istErstellt) {
+                        interessenScores[wort] += 1; // Like fügt Punkte hinzu
+                    } else {
+                        interessenScores[wort] = Math.max(0, interessenScores[wort] - 1); // Dislike zieht Punkte ab
+                    }
+                }
+            });
+            
+            localStorage.setItem('mias_algorithmus_scores', JSON.stringify(interessenScores));
         }
 
         function renderNews() {
@@ -225,7 +266,7 @@
                         <span class="badge ${news.breaking ? 'breaking-badge' : classKat}">
                             ${news.breaking ? '🔥 Eilmeldung' : news.kategorie}
                         </span>
-                        <button class="card-heart ${istFav ? 'active' : ''}" onclick="toggleFavorit('${news.id}', event)">${istFav ? '❤️' : '🤍'}</button>
+                        <button class="card-heart ${istFav ? 'active' : ''}" onclick="toggleFavorit('${news.id}', '${news.titel.replace(/'/g, "\\'")}', '${news.beschreibung.replace(/'/g, "\\'")}', event)">${istFav ? '❤️' : '🤍'}</button>
                     </div>
                     <h2 onclick="this.parentElement.classList.toggle('open')">${news.titel}</h2>
                     <p><strong>Zusammenfassung:</strong> ${news.beschreibung}<br><br><strong>Hauptquelle:</strong> ${news.quelle}</p>
@@ -256,11 +297,19 @@
             renderNews();
         }
 
-        function toggleFavorit(id, event) {
+        // NEU: Erweitertes Favoriten-Handling triggert das Lernen des Algorithmus
+        function toggleFavorit(id, titel, beschreibung, event) {
             event.stopPropagation();
-            if (favoritenSet.has(id)) favoritenSet.delete(id);
-            else favoritenSet.add(id);
+            if (favoritenSet.has(id)) {
+                favoritenSet.delete(id);
+                lerneAusLike(titel, beschreibung, false); // Entliken zieht Relevanz ab
+            } else {
+                favoritenSet.add(id);
+                lerneAusLike(titel, beschreibung, true); // Liken fügt Relevanz hinzu
+            }
             localStorage.setItem('mias_favoriten', JSON.stringify([...favoritenSet]));
+            
+            // Aktualisiert die Ansicht und sortiert die Feeds basierend auf dem neuen Wissen neu!
             renderNews();
         }
 
