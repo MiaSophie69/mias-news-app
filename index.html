@@ -117,40 +117,39 @@
                             let q = artikel.source.name.toLowerCase();
                             let u = artikel.url.toLowerCase();
                             
-                            // 1. NEUE BLOCKLISTE FÜR NERVENDE SEITEN & THEMEN
+                            // 1. HARDCORE BLACKLIST (QUELLEN + LANGWEILIGE THEMEN)
                             const blockierteQuellen = ["kino.de", "ibiza-heute", "ibiza heute"];
-                            const blacklistThemen = ["nba", "basketball", "star trek", "star wars", "fußball", "bundesliga", "sport", "spieltag"];
+                            const blacklistThemen = [
+                                "nba", "basketball", "star trek", "star wars", "fußball", "bundesliga", "sport", "spieltag", "transfer", "formel 1",
+                                "steuerreform", "haushalt", "gesetzesentwurf", "subventionen", "aktienkurs", "dax", "zinsen", "review", "kritik", "vorschau"
+                            ];
                             
-                            const istBlockierteQuelle = blockierteQuellen.some(qName => q.includes(qName) || u.includes(qName));
-                            const istBlacklistedThema = blacklistThemen.some(word => t.includes(word) || d.includes(word));
+                            if (blockierteQuellen.some(qName => q.includes(qName) || u.includes(qName))) return null;
                             
-                            // 2. DAS NETZ FÜR ECHTE EILMELDUNGEN (Kombiniert mit Politik-Filter)
+                            // 2. INTERNATIONALE BREAKING KEYWORDS
                             const breakingWords = [
                                 "breaking", "eilmeldung", "schock", "sensation", "katastrophe", 
-                                "ruecktritt", "rücktritt", "erdbeben", "skandal", "rekord", 
-                                "ausnahmezustand", "warnung", "großalarm", "explosiv", "festnahme",
-                                "historisch", "weltrekord", "überraschung", "enthüllt", "statement", "krieg", "wahl"
+                                "ruecktritt", "rücktritt", "erdbeben", "skandal", "rekord", "announcement",
+                                "ausnahmezustand", "großalarm", "festnahme", "historisch", "weltrekord", "krieg", "wahl"
                             ];
                             const istBreaking = breakingWords.some(word => t.includes(word));
                             
-                            // Quellen komplett blockieren (ohne Ausnahme)
-                            if (istBlockierteQuelle) return null;
+                            // Wenn auf der Blacklist, fliegt es raus, außer es ist eine weltbewegende Eilmeldung
+                            if (blacklistThemen.some(word => t.includes(word) || d.includes(word)) && !istBreaking) return null;
                             
-                            // Themen blockieren, außer es ist ein Mega-Event
-                            if (istBlacklistedThema && !istBreaking) return null;
-                            
-                            // 3. POLITIK RADIKAL FILTERN: Normale Politik-Artikel fliegen raus, außer sie sind extrem wichtig (istBreaking)
+                            // Trockene Standard-Politik kicken (Ausnahme: Eilmeldung/Krise)
                             const istPolitik = t.includes("politik") || t.includes("bundestag") || t.includes("regierung") || t.includes("gesetz") || t.includes("scholz");
                             if (istPolitik && !istBreaking) return null;
 
+                            // 3. INTERNATIONALE POPKULTUR KEYWORDS (DE + EN)
                             const popKeywords = [
                                 "gaga", "swift", "beyonce", "kardashian", "rihanna", "grande", "bieber", 
                                 "lipa", "eilish", "carpenter", "rodrigo", "gomez", "zendaya", "jenner", 
                                 "chalamet", "styles", "roan", "charli xcx", "holland", "sweeney", 
                                 "ethel cain", "cain", "del rey", "lorde", "boygenius", "bridgers", 
                                 "sivan", "rapp", "clairo", "mitski", "hozier", "album", "grammy", 
-                                "met gala", "coachella", "billboard", "charts", "welttournee", 
-                                "musikvideo", "gossip", "konzert", "kino", "promi", "star"
+                                "met gala", "coachella", "billboard", "charts", "welttournee", "tour",
+                                "musikvideo", "gossip", "konzert", "promi", "star", "vinyl", "single", "debut"
                             ];
                             
                             if (t.includes("hamburg") || d.includes("hamburg") || t.includes("lübeck") || d.includes("lübeck") || t.includes("luebeck") || d.includes("luebeck") || t.includes("beck")) {
